@@ -17,11 +17,11 @@ describe("MyToken contract", function () {
 
   async function convertToBigNumber(amount: number, token: MyToken) {
     const tokenDecimals = await token.decimals();
-    return BigInt(1000) * BigInt(10) ** tokenDecimals;
+    return BigInt(amount) * BigInt(10) ** tokenDecimals;
   }
 
   describe("Deployment", function () {
-    it("Should set the right owner", async function () {
+    it("Should set the correct owner", async function () {
       const { myToken, owner } = await loadFixture(deployTokenFixture);
       expect(await myToken.owner()).to.equal(owner.address);
     });
@@ -78,6 +78,41 @@ describe("MyToken contract", function () {
       await expect(
         myToken.connect(addr1).transfer(owner.address, 1)
       ).to.be.revertedWithCustomError(myToken, "ERC20InsufficientBalance");
+
+      // Owner balance shouldn't have changed.
+      expect(await myToken.balanceOf(owner.address)).to.equal(
+        initialOwnerBalance
+      );
+    });
+
+    it("Should fail if non-owner tries to mint tokens", async function () {
+      const { myToken, owner, addr1, addr2 } = await loadFixture(
+        deployTokenFixture
+      );
+      const initialOwnerBalance = await myToken.balanceOf(owner.address);
+
+      // Try to mint 100 tokens from addr1.
+      // `require` will evaluate false and revert the transaction.
+      await expect(
+        myToken.connect(addr1).mint(addr2, 100)
+      ).to.be.revertedWithCustomError(myToken, "OwnableUnauthorizedAccount");
+
+      // Owner balance shouldn't have changed.
+      expect(await myToken.balanceOf(owner.address)).to.equal(
+        initialOwnerBalance
+      );
+    });
+
+    it("Should mint 100 tokens from owner to addr2", async function () {
+      const { myToken, owner, addr2 } = await loadFixture(deployTokenFixture);
+      const initialOwnerBalance = await myToken.balanceOf(owner.address);
+
+      // Mint 100 tokens to addr1
+      await expect(myToken.mint(addr2.address, 100)).to.changeTokenBalances(
+        myToken,
+        [owner, addr2],
+        [0, await convertToBigNumber(100, myToken)]
+      );
 
       // Owner balance shouldn't have changed.
       expect(await myToken.balanceOf(owner.address)).to.equal(

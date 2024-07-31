@@ -1,8 +1,10 @@
 import hre from "hardhat";
-import { loadFixture } from "@nomicfoundation/hardhat-toolbox/network-helpers";
+import {
+  loadFixture,
+  time,
+} from "@nomicfoundation/hardhat-toolbox/network-helpers";
 import { expect } from "chai";
 import { MyToken, LendingPlatform } from "../typechain-types";
-import { token } from "../typechain-types/@openzeppelin/contracts";
 
 describe("LendingPlatform contract", function () {
   async function deployTokenFixture() {
@@ -25,6 +27,11 @@ describe("LendingPlatform contract", function () {
     return { myToken, lendingPlatform, owner, addr1, addr2 };
   }
 
+  async function convertTokenAmount(amount: number, token: MyToken) {
+    const tokenDecimals = await token.decimals();
+    return BigInt(amount) * BigInt(10) ** tokenDecimals;
+  }
+
   describe("Deployment", function () {
     it("Should initialize with zero tokens", async function () {
       const { lendingPlatform } = await loadFixture(deployTokenFixture);
@@ -38,32 +45,129 @@ describe("LendingPlatform contract", function () {
   });
 
   describe("Transactions", function () {
-    it("Should deposit tokens into the lending platform", async function () {
+    it("Should deposit tokens into the lending platform and emit TokenDeposted event", async function () {
       const { myToken, lendingPlatform, owner } = await loadFixture(
         deployTokenFixture
       );
 
       const lpAddress = await lendingPlatform.getAddress();
-      await myToken.approve(lpAddress, 100);
-      await lendingPlatform.connect(owner).lend(100);
+      const tokenAmount = await convertTokenAmount(100, myToken);
+      await myToken.approve(lpAddress, tokenAmount);
 
       // Lend 100 tokens to Lending Platform and verify results
-      expect(await lendingPlatform.getTokenBalance()).to.equal(100);
-    });
-
-    it("Should emit TokenDeposted event", async function() {
-      const { myToken, lendingPlatform, owner } = await loadFixture(
-        deployTokenFixture
-      );
-
-      const lpAddress = await lendingPlatform.getAddress();
-      const tokenAmount = 100;
-      await myToken.approve(lpAddress, 100);
-
-      // Lend 100 tokens to Lending Platform and verify events
       await expect(lendingPlatform.connect(owner).lend(tokenAmount))
         .to.emit(lendingPlatform, "TokensDeposited")
         .withArgs(owner.address, tokenAmount);
+
+      expect(await lendingPlatform.getTokenBalance()).to.equal(tokenAmount);
+    });
+
+    it("Should borrow 50 tokens", async function () {
+      const { myToken, lendingPlatform, owner, addr1 } = await loadFixture(
+        deployTokenFixture
+      );
+
+      const lpAddress = await lendingPlatform.getAddress();
+      const lendTokenAmount = await convertTokenAmount(100, myToken);
+      const borrowTokenAmount = await convertTokenAmount(50, myToken);
+      await myToken.approve(lpAddress, lendTokenAmount);
+      await lendingPlatform.connect(owner).lend(lendTokenAmount);
+
+      // Borrow 50 tokens from Lending Platform and verify results
+      await expect(
+        lendingPlatform.connect(addr1).borrow(borrowTokenAmount)
+      ).to.emit(lendingPlatform, "LoanInitiated");
+
+      expect(await lendingPlatform.getTokenBalance()).to.equal(
+        lendTokenAmount - borrowTokenAmount
+      );
+
+      expect(await myToken.balanceOf(addr1.address)).to.equal(
+        borrowTokenAmount
+      );
+    });
+
+    it("Should fail to start second loan before repaying the first", async function () {
+      const { myToken, lendingPlatform, owner, addr1 } = await loadFixture(
+        deployTokenFixture
+      );
+
+      const lpAddress = await lendingPlatform.getAddress();
+      const lendTokenAmount = await convertTokenAmount(100, myToken);
+      const borrowTokenAmount = await convertTokenAmount(50, myToken);
+      await myToken.approve(lpAddress, lendTokenAmount);
+      await lendingPlatform.connect(owner).lend(lendTokenAmount);
+      await lendingPlatform.connect(addr1).borrow(borrowTokenAmount);
+
+      await expect(
+        lendingPlatform.connect(addr1).borrow(borrowTokenAmount)
+      ).to.revertedWith("Loan already active");
+    });
+
+    it("Should fail if you try and borrow more than the available balance", async function () {
+      const { myToken, lendingPlatform, owner, addr1 } = await loadFixture(
+        deployTokenFixture
+      );
+
+      const lpAddress = await lendingPlatform.getAddress();
+      const lendTokenAmount = await convertTokenAmount(100, myToken);
+      const borrowTokenAmount = await convertTokenAmount(250, myToken);
+      await myToken.approve(lpAddress, lendTokenAmount);
+      await lendingPlatform.connect(owner).lend(lendTokenAmount);
+
+      await expect(
+        lendingPlatform.connect(addr1).borrow(borrowTokenAmount)
+      ).to.revertedWith("Insufficient funds");
+    });
+
+    it("Should fail if you try and repay a loan that has not been initiated", async function () {
+      const { myToken, lendingPlatform, owner, addr1 } = await loadFixture(
+        deployTokenFixture
+      );
+
+      const lpAddress = await lendingPlatform.getAddress();
+      const lendTokenAmount = await convertTokenAmount(100, myToken);
+      const borrowTokenAmount = await convertTokenAmount(250, myToken);
+      await myToken.approve(lpAddress, lendTokenAmount);
+      await lendingPlatform.connect(owner).lend(lendTokenAmount);
+
+      await expect(lendingPlatform.connect(addr1).repay()).to.revertedWith(
+        "No active loan"
+      );
+    });
+
+    it("Should borrow 50 tokens and repay with interest after 180 days", async function () {
+      const { myToken, lendingPlatform, owner, addr1 } = await loadFixture(
+        deployTokenFixture
+      );
+
+      const lpAddress = await lendingPlatform.getAddress();
+      const lendTokenAmount = await convertTokenAmount(100, myToken);
+      const borrowTokenAmount = await convertTokenAmount(50, myToken);
+      const allowanceAmount = await convertTokenAmount(100, myToken);
+
+      await myToken.approve(lpAddress, allowanceAmount);
+      await lendingPlatform.connect(owner).lend(lendTokenAmount);
+
+      // Borrow 50 tokens from Lending Platform
+      // and repay with interest after 180 days
+      await lendingPlatform.connect(addr1).borrow(borrowTokenAmount);
+      await time.increase(time.duration.days(180));
+
+      // give addr1 more of MyToken outside of the Lending Platform in order to repay
+      await myToken
+        .connect(owner)
+        .transfer(addr1.address, await convertTokenAmount(10, myToken));
+
+      await myToken.connect(addr1).approve(lpAddress, allowanceAmount);
+      await expect(lendingPlatform.connect(addr1).repay()).to.emit(
+        lendingPlatform,
+        "LoanRepaid"
+      );
+
+      const newBalance = await lendingPlatform.getTokenBalance();
+      expect(newBalance).to.be.greaterThan(lendTokenAmount);
+      console.log("New balance: ", newBalance.toString());
     });
   });
 });
