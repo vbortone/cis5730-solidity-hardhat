@@ -6,7 +6,10 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 /// @custom:security-contact vbortone@ucf.edu
 contract MyToken is ERC20 {
-    constructor(uint256 initialAmount) ERC20("MyToken", "MTK") {
-        _mint(msg.sender, initialAmount);
+    address payable public owner;
+
+    constructor(uint initialAmount) ERC20("MyToken", "MTK") {
+        owner = payable(msg.sender);
+        _mint(msg.sender, initialAmount * 10 ** decimals());
     }
 }
