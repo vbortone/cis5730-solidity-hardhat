@@ -1,0 +1,31 @@
+Thomas Harshman
+---------------
+- Built out the Lending Platform contract
+- Built out the Lending PLatform With Collateral contract
+- Code Documentation
+- Testing with Remix
+
+Vincent Bortone
+---------------
+- Setup original project in GitHub
+- Introduced Ownerable and ReentrancyGuard base contracts
+- Migrated code from Remix to Hardhat in order to get better unit testing
+- Testing with Hardhat (Mocha/Chai)
+- Contract refactoring after running unit tests
+
+Notes
+-----
+Along with this file and the three smart contacts, we've included the Typecript files
+used to test contracts with Hardhat.  Below are the code converage stats as of
+submission:
+
+------------------------------------|----------|----------|----------|----------|----------------|
+File                                |  % Stmts | % Branch |  % Funcs |  % Lines |Uncovered Lines |
+------------------------------------|----------|----------|----------|----------|----------------|
+ contracts/                         |     42.5 |    33.33 |    58.82 |    47.17 |                |
+  LendingPlatform.sol               |      100 |    66.67 |      100 |      100 |                |
+  LendingPlatformWithCollateral.sol |        0 |        0 |     12.5 |        0 |... 159,160,163 |
+  MyToken.sol                       |      100 |      100 |      100 |      100 |                |
+------------------------------------|----------|----------|----------|----------|----------------|
+All files                           |     42.5 |    33.33 |    58.82 |    47.17 |                |
+------------------------------------|----------|----------|----------|----------|----------------|
