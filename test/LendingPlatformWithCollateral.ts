@@ -102,9 +102,11 @@ describe("LendingPlatformWithCollateral contract", function () {
 
       await setBalance(addr1.address, hre.ethers.parseEther("2"));
 
-      await expect(lendingPlatform.connect(addr1).depositCollateral({
-        value: 0, // updated parseEther usage
-      })).to.revertedWith("Must deposit Ether as collateral");
+      await expect(
+        lendingPlatform.connect(addr1).depositCollateral({
+          value: 0, // updated parseEther usage
+        })
+      ).to.revertedWith("Must deposit Ether as collateral");
     });
 
     it("Should allow withdrawl after depositing collateral", async function () {
@@ -124,7 +126,11 @@ describe("LendingPlatformWithCollateral contract", function () {
 
       await tx.wait();
 
-      await expect(lendingPlatform.connect(addr1).withdrawCollateral(hre.ethers.parseEther("0.25")))
+      await expect(
+        lendingPlatform
+          .connect(addr1)
+          .withdrawCollateral(hre.ethers.parseEther("0.25"))
+      )
         .to.emit(lendingPlatform, "CollateralWithdrawn")
         .withArgs(addr1.address, hre.ethers.parseEther("0.25"));
     });
@@ -146,8 +152,11 @@ describe("LendingPlatformWithCollateral contract", function () {
 
       await tx.wait();
 
-      await expect(lendingPlatform.connect(addr1).withdrawCollateral(hre.ethers.parseEther("0.50")))
-        .to.revertedWith("Not enough collateral");
+      await expect(
+        lendingPlatform
+          .connect(addr1)
+          .withdrawCollateral(hre.ethers.parseEther("0.50"))
+      ).to.revertedWith("Not enough collateral");
     });
 
     it("Should fail on withdrawl if ask for zero", async function () {
@@ -167,8 +176,9 @@ describe("LendingPlatformWithCollateral contract", function () {
 
       await tx.wait();
 
-      await expect(lendingPlatform.connect(addr1).withdrawCollateral(0))
-        .to.revertedWith("Must withdraw a positive amount");
+      await expect(
+        lendingPlatform.connect(addr1).withdrawCollateral(0)
+      ).to.revertedWith("Must withdraw a positive amount");
     });
 
     it("Should allow borrowing of tokens after collateral", async function () {
@@ -182,18 +192,21 @@ describe("LendingPlatformWithCollateral contract", function () {
 
       await setBalance(addr1.address, hre.ethers.parseEther("2"));
 
-      const txdepositCollateral = await lendingPlatform.connect(addr1).depositCollateral({
-        value: hre.ethers.parseEther("1"), // updated parseEther usage
-      });
+      const txdepositCollateral = await lendingPlatform
+        .connect(addr1)
+        .depositCollateral({
+          value: hre.ethers.parseEther("1"), // updated parseEther usage
+        });
 
       await txdepositCollateral.wait();
 
-      await expect(lendingPlatform.connect(addr1).borrow(tokenAmount))
-        .to.emit(lendingPlatform, "LoanInitiated");
+      await expect(lendingPlatform.connect(addr1).borrow(tokenAmount)).to.emit(
+        lendingPlatform,
+        "LoanInitiated"
+      );
 
       const addr1Balance = await hre.ethers.provider.getBalance(addr1.address);
       expect(addr1Balance).to.be.lessThan(hre.ethers.parseEther("1"));
-      
     });
   });
 });

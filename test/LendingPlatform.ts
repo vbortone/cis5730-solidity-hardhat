@@ -8,6 +8,7 @@ import { MyToken, LendingPlatform } from "../typechain-types";
 
 describe("LendingPlatform contract", function () {
   async function deployTokenFixture() {
+    // Deploy MyToken and LendingPlatform contracts
     const tokensToMint = 1000;
     const [owner, addr1, addr2] = await hre.ethers.getSigners();
 
@@ -28,6 +29,7 @@ describe("LendingPlatform contract", function () {
   }
 
   async function convertTokenAmount(amount: number, token: MyToken) {
+    // Convert amount to the correct token decimals
     const tokenDecimals = await token.decimals();
     return BigInt(amount) * BigInt(10) ** tokenDecimals;
   }
@@ -49,7 +51,7 @@ describe("LendingPlatform contract", function () {
       const { myToken, lendingPlatform, owner } = await loadFixture(
         deployTokenFixture
       );
-
+      
       const lpAddress = await lendingPlatform.getAddress();
       const tokenAmount = await convertTokenAmount(100, myToken);
       await myToken.approve(lpAddress, tokenAmount);
