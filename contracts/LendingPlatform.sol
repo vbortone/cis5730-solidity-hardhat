@@ -71,7 +71,16 @@ contract LendingPlatform is ReentrancyGuard {
      * @dev Function to allow users to borrow tokens from the contract
      * @param _amount The amount of tokens to borrow
      */
-    function borrow(uint256 _amount) public nonReentrant virtual {
+    function borrow(uint256 _amount) public virtual nonReentrant {
+        borrowInternal(_amount);
+    }
+
+    /**
+     * @dev Internal function to allow users to borrow tokens from the contract
+     * @param _amount The amount of tokens to borrow
+     * Will be called by the borrow function and can be overridden in child contracts
+     */
+    function borrowInternal(uint256 _amount) internal {
         // Check that the user does not have an active loan
         require(loans[msg.sender].active == false, "Loan already active");
 
@@ -94,8 +103,17 @@ contract LendingPlatform is ReentrancyGuard {
     /**
      * @dev Function to allow users to repay their loans
      * Users can repay the loan amount along with the interest accrued
+     * Will be called by the replay function and can be overridden in child contracts
      */
-    function repay() public nonReentrant virtual{
+    function repay() public virtual nonReentrant {
+        repayInternal();
+    }
+
+    /**
+     * @dev Internal function to allow users to repay their loans
+     * Users can repay the loan amount along with the interest accrued
+     */
+    function repayInternal() internal {
         // Get the loan details of the borrower
         Loan storage loan = loans[msg.sender];
         // console.log("Loan: %s", loan.amount);

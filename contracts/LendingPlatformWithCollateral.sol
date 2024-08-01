@@ -52,7 +52,7 @@ contract LendingPlatformWithCollateral is LendingPlatform {
      * @dev Function to withdraw deposited collateral
      * @param _amount The amount of collateral to withdraw
      */
-    function withdrawCollateral(uint256 _amount) external nonReentrant {
+    function withdrawCollateral(uint256 _amount) public nonReentrant {
         // Require that the user withdraws a non-zero amount of collateral
         require(_amount > 0, "Must withdraw a positive amount");
 
@@ -92,8 +92,8 @@ contract LendingPlatformWithCollateral is LendingPlatform {
             "Not enough collateral"
         );
 
-        // Call the borrow function from the parent contract
-        super.borrow(_amount);
+        // Call the borrow internal function from the parent contract
+        super.borrowInternal(_amount);
     }
 
     /**
@@ -101,10 +101,12 @@ contract LendingPlatformWithCollateral is LendingPlatform {
      */
     function repay() public override nonReentrant {
         // Repay the loan using the parent contract's repay function
-        super.repay();
+        super.repayInternal();
 
-        // Adjust collateral proportionally to the repaid loan amount
-        collateralEther[msg.sender] = 0;
+        // Return the collateral to the user
+        uint256 collateral = collateralEther[msg.sender];
+        payable(msg.sender).transfer(collateral);
+        delete collateralEther[msg.sender];
     }
 
     /**
@@ -139,13 +141,13 @@ contract LendingPlatformWithCollateral is LendingPlatform {
      * @dev Function to liquidate the collateral of a user if the value falls below the liquidation ratio
      * @param _user The address of the user to liquidate
      */
-    function liquidate(address _user) external nonReentrant() {
+    function liquidate(address _user) external nonReentrant {
         // Check if the user's collateral value is below the liquidation ratio
         uint256 collateralValueInEther = collateralEther[_user];
         // Assume 1 token = 1 USD and 1 Ether = 2000 USD for simplicity
         uint256 requiredCollateral = ((loans[_user].amount / 2000) *
             liquidationRatio) / 100;
-        
+
         // Revert the transaction if the collateral value is sufficient
         require(
             collateralValueInEther < requiredCollateral,
